@@ -1,6 +1,10 @@
 /**
  * Main Application Component
  * HubSpot WhatsApp Calling Widget
+ *
+ * Supports two modes:
+ * 1. Standalone Mode (DEV_MODE=true) - For local testing without HubSpot
+ * 2. HubSpot Mode - When loaded inside HubSpot iframe
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
@@ -42,9 +46,31 @@ import { cleanPhoneNumber } from '../utils/formatters';
 
 const { thirdPartyToHostEvents } = Constants;
 
+// Check if we're in development/standalone mode
+// This allows testing without being inside HubSpot iframe
+const isStandaloneMode = (): boolean => {
+  // Check URL param: ?standalone=true
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('standalone') === 'true') return true;
+
+  // Check if NOT inside HubSpot iframe (no parent or same origin)
+  try {
+    if (window.self === window.top) return true;
+  } catch (e) {
+    // Cross-origin, likely inside HubSpot
+    return false;
+  }
+
+  return false;
+};
+
+const DEV_MODE = isStandaloneMode();
+
 const App: React.FC = () => {
-  // Screen state
-  const [currentScreen, setCurrentScreen] = useState<ScreenNames>(ScreenNames.Loading);
+  // Screen state - Start at Login in standalone mode, Loading in HubSpot mode
+  const [currentScreen, setCurrentScreen] = useState<ScreenNames>(
+    DEV_MODE ? ScreenNames.Login : ScreenNames.Loading
+  );
 
   // Call state
   const [dialNumber, setDialNumber] = useState('+');
@@ -101,28 +127,41 @@ const App: React.FC = () => {
   // INITIALIZATION
   // ============================================================================
 
-  // Initialize when HubSpot SDK is ready
+  // Standalone mode owner ID (for testing)
+  const [standaloneOwnerId] = useState(() => `dev_${Date.now()}`);
+  const effectiveOwnerId = DEV_MODE ? standaloneOwnerId : ownerId;
+
+  // Log mode on mount
   useEffect(() => {
-    if (isReady) {
+    console.log(`🚀 Widget running in ${DEV_MODE ? 'STANDALONE' : 'HUBSPOT'} mode`);
+    if (DEV_MODE) {
+      console.log('📋 Standalone mode: HubSpot SDK bypassed for local testing');
+      console.log('📋 Owner ID:', standaloneOwnerId);
+    }
+  }, [standaloneOwnerId]);
+
+  // Initialize when HubSpot SDK is ready (only in HubSpot mode)
+  useEffect(() => {
+    if (!DEV_MODE && isReady) {
       setCurrentScreen(ScreenNames.Login);
     }
   }, [isReady]);
 
-  // Initialize WebRTC when user logs in and has ownerId
+  // Initialize WebRTC when user logs in
   useEffect(() => {
     const initializeServices = async () => {
-      if (ownerId && currentScreen === ScreenNames.Keypad) {
+      if (effectiveOwnerId && currentScreen === ScreenNames.Keypad) {
         try {
           // Initialize WebRTC with owner identity
-          const identity = `hubspot_${ownerId}`;
+          const identity = `hubspot_${effectiveOwnerId}`;
           await webrtcService.initialize(identity);
 
           // Connect WebSocket for incoming calls
-          websocketService.connect(ownerId);
+          websocketService.connect(effectiveOwnerId);
 
-          console.log('Services initialized for owner:', ownerId);
+          console.log('✅ Services initialized for owner:', effectiveOwnerId);
         } catch (error) {
-          console.error('Failed to initialize services:', error);
+          console.error('❌ Failed to initialize services:', error);
         }
       }
     };
@@ -133,7 +172,7 @@ const App: React.FC = () => {
       // Cleanup on unmount
       // Note: Don't destroy on every re-render, only on unmount
     };
-  }, [ownerId, currentScreen]);
+  }, [effectiveOwnerId, currentScreen]);
 
   // ============================================================================
   // WEBSOCKET EVENT HANDLERS
@@ -357,7 +396,10 @@ const App: React.FC = () => {
   // ============================================================================
 
   const handleLogin = useCallback(() => {
-    cti.userLoggedIn();
+    if (!DEV_MODE) {
+      cti.userLoggedIn();
+    }
+    console.log('👤 User logged in');
     setCurrentScreen(ScreenNames.Keypad);
   }, [cti]);
 
@@ -579,8 +621,10 @@ const App: React.FC = () => {
       fromNumber: '+1234567890',
       contactName: 'Test Contact',
       contactId: 'test_contact',
-      ownerId: ownerId,
+      ownerId: effectiveOwnerId,
     };
+
+    console.log('📞 Simulating incoming call:', testData);
 
     setIncomingNumber(testData.fromNumber);
     setContactName(testData.contactName || '');
@@ -588,15 +632,17 @@ const App: React.FC = () => {
     setCurrentCallSid(testData.callSid);
     setDirection('INBOUND');
 
-    cti.incomingCall({
-      externalCallId: uuidv4(),
-      fromNumber: testData.fromNumber,
-      toNumber: fromNumber,
-      createEngagement: true,
-    });
+    if (!DEV_MODE) {
+      cti.incomingCall({
+        externalCallId: uuidv4(),
+        fromNumber: testData.fromNumber,
+        toNumber: fromNumber,
+        createEngagement: true,
+      });
+    }
 
     setCurrentScreen(ScreenNames.Incoming);
-  }, [cti, fromNumber, ownerId]);
+  }, [cti, fromNumber, effectiveOwnerId]);
 
   // ============================================================================
   // RENDER

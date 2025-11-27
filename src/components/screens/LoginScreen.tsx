@@ -11,10 +11,25 @@ import {
   Content,
   PrimaryButton,
   FlexColumn,
+  AlertBox,
 } from '../../theme/styled';
 import { WhatsAppIcon, HubSpotIcon, UserIcon } from '../Icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../theme/colors';
 import { ScreenProps, ScreenNames } from '../../types';
+
+// Check if in standalone mode
+const isStandaloneMode = (): boolean => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('standalone') === 'true') return true;
+  try {
+    if (window.self === window.top) return true;
+  } catch (e) {
+    return false;
+  }
+  return false;
+};
+
+const DEV_MODE = isStandaloneMode();
 
 const LoginContainer = styled.div`
   display: flex;
@@ -90,6 +105,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </HeaderTitle>
       </Header>
       <Content>
+        {DEV_MODE && (
+          <AlertBox $variant="warning" style={{ marginBottom: SPACING.md }}>
+            <strong>Standalone Mode</strong>
+            <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
+              Testing without HubSpot. Backend: {process.env.REACT_APP_API_URL || 'http://localhost:3000'}
+            </p>
+          </AlertBox>
+        )}
         <LoginContainer>
           <LogoContainer>
             <HubSpotIcon size={56} />
@@ -112,7 +135,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
           <PrimaryButton onClick={onLogin} style={{ width: '100%' }}>
             <UserIcon size={20} color="#fff" />
-            Login to Start Calling
+            {DEV_MODE ? 'Start Testing (Dev Mode)' : 'Login to Start Calling'}
           </PrimaryButton>
         </LoginContainer>
       </Content>
