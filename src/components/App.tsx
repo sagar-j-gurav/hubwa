@@ -135,23 +135,12 @@ const App: React.FC = () => {
   }, [standaloneOwnerId]);
 
   // Initialize when HubSpot SDK is ready (only in HubSpot mode)
-  // Skip login screen - go directly to Keypad
+  // Register Twilio device and set as available
   useEffect(() => {
-    if (!DEV_MODE && isReady) {
-      cti.userLoggedIn();
-      // Set default availability to AVAILABLE and notify HubSpot
-      cti.userAvailable();
-      console.log('👤 User auto-logged in and set as Available');
-      setCurrentScreen(ScreenNames.Keypad);
-    }
-  }, [isReady, cti]);
-
-  // Initialize WebRTC when user logs in
-  useEffect(() => {
-    const initializeServices = async () => {
-      if (effectiveOwnerId && currentScreen === ScreenNames.Keypad) {
+    const initializeWidget = async () => {
+      if (!DEV_MODE && isReady && effectiveOwnerId) {
         try {
-          // Initialize WebRTC with owner identity
+          // Initialize WebRTC with owner identity FIRST
           const identity = `hubspot_${effectiveOwnerId}`;
           await webrtcService.initialize(identity);
 
@@ -159,18 +148,41 @@ const App: React.FC = () => {
           websocketService.connect(effectiveOwnerId);
 
           console.log('✅ Services initialized for owner:', effectiveOwnerId);
+
+          // Now set user as logged in and available
+          cti.userLoggedIn();
+          cti.userAvailable();
+          console.log('👤 User auto-logged in and set as Available');
+
+          setCurrentScreen(ScreenNames.Keypad);
+        } catch (error) {
+          console.error('❌ Failed to initialize services:', error);
+          // Still show keypad even if services fail
+          cti.userLoggedIn();
+          setCurrentScreen(ScreenNames.Keypad);
+        }
+      }
+    };
+
+    initializeWidget();
+  }, [isReady, effectiveOwnerId, cti]);
+
+  // Initialize services in DEV mode
+  useEffect(() => {
+    const initializeDevMode = async () => {
+      if (DEV_MODE && effectiveOwnerId && currentScreen === ScreenNames.Keypad) {
+        try {
+          const identity = `hubspot_${effectiveOwnerId}`;
+          await webrtcService.initialize(identity);
+          websocketService.connect(effectiveOwnerId);
+          console.log('✅ DEV MODE: Services initialized for owner:', effectiveOwnerId);
         } catch (error) {
           console.error('❌ Failed to initialize services:', error);
         }
       }
     };
 
-    initializeServices();
-
-    return () => {
-      // Cleanup on unmount
-      // Note: Don't destroy on every re-render, only on unmount
-    };
+    initializeDevMode();
   }, [effectiveOwnerId, currentScreen]);
 
   // ============================================================================
