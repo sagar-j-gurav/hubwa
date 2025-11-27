@@ -94,6 +94,7 @@ const App: React.FC = () => {
 
   const {
     permissionStatus,
+    permission,
     isChecking: isCheckingPermission,
     isRequesting: isRequestingPermission,
     canCall: canMakeCall,
@@ -204,6 +205,14 @@ const App: React.FC = () => {
       }
     };
   }, [dialNumber, currentScreen, checkPermission, resetPermission]);
+
+  // Sync contactId from permission check response to local state
+  useEffect(() => {
+    if (permission?.hubspot_contact_id && !contactId) {
+      console.log('💾 Setting contactId from permission check:', permission.hubspot_contact_id);
+      setContactId(permission.hubspot_contact_id);
+    }
+  }, [permission, contactId]);
 
   // ============================================================================
   // WEBSOCKET EVENT HANDLERS
@@ -520,18 +529,31 @@ const App: React.FC = () => {
   const handleRequestPermission = useCallback(async () => {
     const cleanNumber = cleanPhoneNumber(dialNumber);
 
-    // If we don't have contactId, try to get it from backend
-    let hubspotContactId = contactId || '';
+    // Get contactId from permission check response, local state, or fetch from backend
+    let hubspotContactId = permission?.hubspot_contact_id || contactId || '';
+
+    console.log('📋 handleRequestPermission - contactId sources:', {
+      fromPermission: permission?.hubspot_contact_id,
+      fromState: contactId,
+      final: hubspotContactId,
+    });
+
+    // If still no contactId, try to fetch from backend
     if (!hubspotContactId) {
       try {
         const contact = await apiService.getContact(cleanNumber);
         if (contact?.id) {
           hubspotContactId = contact.id;
           setContactId(contact.id);
+          console.log('📋 Got contactId from backend:', hubspotContactId);
         }
       } catch (err) {
-        console.log('Could not get contact, proceeding without contactId');
+        console.log('Could not get contact from backend, proceeding without contactId');
       }
+    }
+
+    if (!hubspotContactId) {
+      console.warn('⚠️ No contactId available for permission request');
     }
 
     await requestPermission(cleanNumber, hubspotContactId);
@@ -540,7 +562,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       checkPermission(cleanNumber);
     }, 1000);
-  }, [dialNumber, contactId, requestPermission, checkPermission]);
+  }, [dialNumber, permission, contactId, requestPermission, checkPermission]);
 
   const handleOutgoingCallStarted = useCallback(() => {
     setDirection('OUTBOUND');
