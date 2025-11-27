@@ -2,7 +2,7 @@
  * Keypad Screen Component - Main dialing interface
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import styled from 'styled-components';
 import {
   WidgetContainer,
@@ -19,14 +19,19 @@ import {
   Select,
   StatusBadge,
   AlertBox,
+  PrimaryButton,
+  SecondaryButton,
 } from '../../theme/styled';
 import {
   WhatsAppIcon,
   PhoneIcon,
   BackspaceIcon,
+  CheckIcon,
+  ClockIcon,
+  SendIcon,
 } from '../Icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../theme/colors';
-import { ScreenProps, ScreenNames, Availability } from '../../types';
+import { ScreenProps, Availability, PermissionStatus } from '../../types';
 
 const KEYPAD_BUTTONS = [
   { digit: '1', letters: '' },
@@ -78,13 +83,58 @@ const ActionButtonsRow = styled.div`
   margin-top: ${SPACING.lg};
 `;
 
+const PermissionStatusContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: ${SPACING.sm};
+  margin-bottom: ${SPACING.md};
+  padding: ${SPACING.sm} ${SPACING.md};
+  border-radius: 8px;
+  background: ${COLORS.gypsum};
+  width: 100%;
+`;
+
+const PermissionBadge = styled.div<{ $status: 'granted' | 'pending' | 'not_found' | 'checking' }>`
+  display: flex;
+  align-items: center;
+  gap: ${SPACING.xs};
+  padding: ${SPACING.xs} ${SPACING.sm};
+  border-radius: 16px;
+  font-size: ${TYPOGRAPHY.fontSize.sm};
+  font-weight: ${TYPOGRAPHY.fontWeight.medium};
+  background: ${({ $status }) => {
+    switch ($status) {
+      case 'granted': return COLORS.successLight;
+      case 'pending': return COLORS.warningLight;
+      case 'checking': return COLORS.koala;
+      default: return COLORS.koala;
+    }
+  }};
+  color: ${({ $status }) => {
+    switch ($status) {
+      case 'granted': return COLORS.successDark;
+      case 'pending': return COLORS.warningDark;
+      default: return COLORS.battleship;
+    }
+  }};
+`;
+
+const RequestPermissionButton = styled(PrimaryButton)`
+  padding: ${SPACING.xs} ${SPACING.md};
+  font-size: ${TYPOGRAPHY.fontSize.sm};
+`;
+
 interface KeypadScreenProps extends Partial<ScreenProps> {
   dialNumber: string;
   setDialNumber: (num: string) => void;
   availability: Availability;
   setAvailability: (avail: Availability) => void;
   onCall: () => void;
+  onRequestPermission?: () => void;
   isCheckingPermission?: boolean;
+  isRequestingPermission?: boolean;
+  permissionStatus?: PermissionStatus | null;
   permissionError?: string | null;
 }
 
@@ -94,7 +144,10 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
   availability,
   setAvailability,
   onCall,
+  onRequestPermission,
   isCheckingPermission,
+  isRequestingPermission,
+  permissionStatus,
   permissionError,
 }) => {
   const handleDigitPress = useCallback(
@@ -131,6 +184,93 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
   );
 
   const isValidNumber = dialNumber.replace(/\D/g, '').length >= 10;
+  const canCall = isValidNumber && permissionStatus === 'granted';
+  const showPermissionStatus = isValidNumber && !isCheckingPermission;
+
+  const renderPermissionStatus = () => {
+    if (!isValidNumber) return null;
+
+    if (isCheckingPermission) {
+      return (
+        <PermissionStatusContainer>
+          <PermissionBadge $status="checking">
+            <ClockIcon size={14} />
+            Checking permission...
+          </PermissionBadge>
+        </PermissionStatusContainer>
+      );
+    }
+
+    if (permissionStatus === 'granted') {
+      return (
+        <PermissionStatusContainer>
+          <PermissionBadge $status="granted">
+            <CheckIcon size={14} color={COLORS.successDark} />
+            Permission Granted
+          </PermissionBadge>
+        </PermissionStatusContainer>
+      );
+    }
+
+    if (permissionStatus === 'pending') {
+      return (
+        <PermissionStatusContainer>
+          <PermissionBadge $status="pending">
+            <ClockIcon size={14} />
+            Permission Pending
+          </PermissionBadge>
+          <span style={{ fontSize: TYPOGRAPHY.fontSize.xs, color: COLORS.battleship }}>
+            Waiting for contact to accept
+          </span>
+        </PermissionStatusContainer>
+      );
+    }
+
+    // Not found or not requested - show request button
+    if (permissionStatus === 'not_found' || permissionStatus === 'not_requested' || !permissionStatus) {
+      return (
+        <PermissionStatusContainer>
+          <PermissionBadge $status="not_found">
+            Permission Required
+          </PermissionBadge>
+          {onRequestPermission && (
+            <RequestPermissionButton
+              onClick={onRequestPermission}
+              disabled={isRequestingPermission}
+            >
+              <SendIcon size={14} color="#fff" />
+              {isRequestingPermission ? 'Sending...' : 'Send Permission Request'}
+            </RequestPermissionButton>
+          )}
+        </PermissionStatusContainer>
+      );
+    }
+
+    // Denied, expired, revoked, rate_limited
+    if (['denied', 'expired', 'revoked', 'rate_limited'].includes(permissionStatus)) {
+      return (
+        <PermissionStatusContainer>
+          <AlertBox $variant="warning" style={{ margin: 0, width: '100%' }}>
+            {permissionStatus === 'rate_limited'
+              ? 'Rate limit reached. Please try again later.'
+              : `Permission ${permissionStatus}. Cannot make calls.`}
+          </AlertBox>
+          {permissionStatus !== 'rate_limited' && onRequestPermission && (
+            <RequestPermissionButton
+              onClick={onRequestPermission}
+              disabled={isRequestingPermission}
+              style={{ marginTop: SPACING.xs }}
+            >
+              <SendIcon size={14} color="#fff" />
+              {isRequestingPermission ? 'Sending...' : 'Request Again'}
+            </RequestPermissionButton>
+          )}
+        </PermissionStatusContainer>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <WidgetContainer>
@@ -158,7 +298,7 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
 
       <Content>
         {permissionError && (
-          <AlertBox $variant="warning">
+          <AlertBox $variant="error">
             {permissionError}
           </AlertBox>
         )}
@@ -172,6 +312,8 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
               placeholder="Enter phone number"
             />
           </PhoneInputContainer>
+
+          {renderPermissionStatus()}
 
           <KeypadGrid>
             {KEYPAD_BUTTONS.map(({ digit, letters }) => (
@@ -199,8 +341,14 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
             <IconButton
               $variant="success"
               onClick={handleCall}
-              disabled={!isValidNumber || isCheckingPermission}
-              title={isValidNumber ? 'Call' : 'Enter a valid phone number'}
+              disabled={!canCall || isCheckingPermission}
+              title={
+                !isValidNumber
+                  ? 'Enter a valid phone number'
+                  : !canCall
+                    ? 'Permission required to call'
+                    : 'Call'
+              }
             >
               <PhoneIcon size={28} color="#fff" />
             </IconButton>

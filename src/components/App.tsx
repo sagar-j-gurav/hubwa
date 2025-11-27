@@ -171,6 +171,41 @@ const App: React.FC = () => {
   }, [effectiveOwnerId, currentScreen]);
 
   // ============================================================================
+  // PERMISSION CHECK ON PHONE NUMBER CHANGE
+  // ============================================================================
+
+  // Debounce ref for permission check
+  const permissionCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Clear previous timeout
+    if (permissionCheckTimeoutRef.current) {
+      clearTimeout(permissionCheckTimeoutRef.current);
+    }
+
+    // Only check if we're on the Keypad screen and have a valid number
+    const cleanNumber = cleanPhoneNumber(dialNumber);
+    const isValidNumber = cleanNumber.replace(/\D/g, '').length >= 10;
+
+    if (currentScreen === ScreenNames.Keypad && isValidNumber) {
+      // Debounce the permission check (500ms delay)
+      permissionCheckTimeoutRef.current = setTimeout(() => {
+        console.log('📋 Checking permission for:', cleanNumber);
+        checkPermission(cleanNumber);
+      }, 500);
+    } else {
+      // Reset permission if number is not valid
+      resetPermission();
+    }
+
+    return () => {
+      if (permissionCheckTimeoutRef.current) {
+        clearTimeout(permissionCheckTimeoutRef.current);
+      }
+    };
+  }, [dialNumber, currentScreen, checkPermission, resetPermission]);
+
+  // ============================================================================
   // WEBSOCKET EVENT HANDLERS
   // ============================================================================
 
@@ -484,12 +519,28 @@ const App: React.FC = () => {
 
   const handleRequestPermission = useCallback(async () => {
     const cleanNumber = cleanPhoneNumber(dialNumber);
-    await requestPermission(cleanNumber, contactId || '');
 
-    if (permissionStatus === 'pending') {
-      setCurrentScreen(ScreenNames.PermissionPending);
+    // If we don't have contactId, try to get it from backend
+    let hubspotContactId = contactId || '';
+    if (!hubspotContactId) {
+      try {
+        const contact = await apiService.getContact(cleanNumber);
+        if (contact?.id) {
+          hubspotContactId = contact.id;
+          setContactId(contact.id);
+        }
+      } catch (err) {
+        console.log('Could not get contact, proceeding without contactId');
+      }
     }
-  }, [dialNumber, contactId, requestPermission, permissionStatus]);
+
+    await requestPermission(cleanNumber, hubspotContactId);
+
+    // Refresh permission status after request
+    setTimeout(() => {
+      checkPermission(cleanNumber);
+    }, 1000);
+  }, [dialNumber, contactId, requestPermission, checkPermission]);
 
   const handleOutgoingCallStarted = useCallback(() => {
     setDirection('OUTBOUND');
@@ -673,7 +724,10 @@ const App: React.FC = () => {
             availability={availability}
             setAvailability={handleAvailabilityChange}
             onCall={handleCall}
+            onRequestPermission={handleRequestPermission}
             isCheckingPermission={isCheckingPermission}
+            isRequestingPermission={isRequestingPermission}
+            permissionStatus={permissionStatus}
             permissionError={permissionError}
           />
         );

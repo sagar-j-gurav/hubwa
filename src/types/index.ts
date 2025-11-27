@@ -32,6 +32,7 @@ export type PermissionStatus =
   | 'revoked'
   | 'expired'
   | 'not_found'
+  | 'not_requested'
   | 'rate_limited';
 
 export interface CallPermission {
