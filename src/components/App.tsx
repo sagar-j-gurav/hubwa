@@ -834,8 +834,6 @@ const App: React.FC = () => {
             onMute={handleMute}
             onSendDTMF={handleSendDTMF}
             isMuted={isMuted}
-            isRecording={isCallRecorded}
-            setIsRecording={setIsCallRecorded}
             notes={notes}
             setNotes={setNotes}
           />

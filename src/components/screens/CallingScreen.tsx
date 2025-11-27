@@ -16,12 +16,9 @@ import {
   CallDuration,
   ActionButtonsContainer,
   IconButton,
-  KeypadGrid,
-  KeypadButton,
   TextArea,
   FormGroup,
   Label,
-  FlexRow,
 } from '../../theme/styled';
 import {
   WhatsAppIcon,
@@ -29,7 +26,6 @@ import {
   MicIcon,
   MicOffIcon,
   KeypadIcon,
-  RecordIcon,
   NoteIcon,
 } from '../Icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../theme/colors';
@@ -145,8 +141,6 @@ interface CallingScreenProps {
   onMute: (muted: boolean) => void;
   onSendDTMF: (digit: string) => void;
   isMuted: boolean;
-  isRecording: boolean;
-  setIsRecording: (recording: boolean) => void;
   notes: string;
   setNotes: (notes: string) => void;
 }
@@ -160,8 +154,6 @@ const CallingScreen: React.FC<CallingScreenProps> = ({
   onMute,
   onSendDTMF,
   isMuted,
-  isRecording,
-  setIsRecording,
   notes,
   setNotes,
 }) => {
@@ -174,10 +166,6 @@ const CallingScreen: React.FC<CallingScreenProps> = ({
   const handleMuteToggle = useCallback(() => {
     onMute(!isMuted);
   }, [isMuted, onMute]);
-
-  const handleRecordToggle = useCallback(() => {
-    setIsRecording(!isRecording);
-  }, [isRecording, setIsRecording]);
 
   const handleKeypadToggle = useCallback(() => {
     setShowKeypad(!showKeypad);
@@ -224,11 +212,6 @@ const CallingScreen: React.FC<CallingScreenProps> = ({
           <ControlButton $active={showKeypad} onClick={handleKeypadToggle}>
             <KeypadIcon size={20} />
             <span>Keypad</span>
-          </ControlButton>
-
-          <ControlButton $active={isRecording} onClick={handleRecordToggle}>
-            <RecordIcon size={20} color={isRecording ? COLORS.error : undefined} />
-            <span>{isRecording ? 'Stop' : 'Record'}</span>
           </ControlButton>
 
           <ControlButton $active={showNotes} onClick={handleNotesToggle}>
