@@ -46,25 +46,9 @@ import { cleanPhoneNumber } from '../utils/formatters';
 
 const { thirdPartyToHostEvents } = Constants;
 
-// Check if we're in development/standalone mode
-// This allows testing without being inside HubSpot iframe
-const isStandaloneMode = (): boolean => {
-  // Check URL param: ?standalone=true
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('standalone') === 'true') return true;
-
-  // Check if NOT inside HubSpot iframe (no parent or same origin)
-  try {
-    if (window.self === window.top) return true;
-  } catch (e) {
-    // Cross-origin, likely inside HubSpot
-    return false;
-  }
-
-  return false;
-};
-
-const DEV_MODE = isStandaloneMode();
+// Dev mode controlled by environment variable
+// Set REACT_APP_DEV_MODE=true to enable standalone testing
+const DEV_MODE = process.env.REACT_APP_DEV_MODE === 'true';
 
 const App: React.FC = () => {
   // Screen state - Start at Login in standalone mode, Loading in HubSpot mode

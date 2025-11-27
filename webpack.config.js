@@ -56,6 +56,7 @@ module.exports = (env, argv) => {
           REACT_APP_API_URL: process.env.REACT_APP_API_URL || 'http://localhost:3000',
           REACT_APP_WEBSOCKET_URL: process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:3000',
           REACT_APP_TWILIO_WHATSAPP_NUMBER: process.env.REACT_APP_TWILIO_WHATSAPP_NUMBER || '+447366331247',
+          REACT_APP_DEV_MODE: process.env.REACT_APP_DEV_MODE || 'false',
         }),
       }),
     ],

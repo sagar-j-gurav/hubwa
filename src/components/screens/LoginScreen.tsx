@@ -17,19 +17,8 @@ import { WhatsAppIcon, HubSpotIcon, UserIcon } from '../Icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../theme/colors';
 import { ScreenProps, ScreenNames } from '../../types';
 
-// Check if in standalone mode
-const isStandaloneMode = (): boolean => {
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('standalone') === 'true') return true;
-  try {
-    if (window.self === window.top) return true;
-  } catch (e) {
-    return false;
-  }
-  return false;
-};
-
-const DEV_MODE = isStandaloneMode();
+// Dev mode controlled by environment variable
+const DEV_MODE = process.env.REACT_APP_DEV_MODE === 'true';
 
 const LoginContainer = styled.div`
   display: flex;
