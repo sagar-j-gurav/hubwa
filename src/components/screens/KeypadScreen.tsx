@@ -17,7 +17,6 @@ import {
   KeypadButton,
   IconButton,
   Select,
-  FlexBetween,
   StatusBadge,
   AlertBox,
 } from '../../theme/styled';
@@ -25,7 +24,6 @@ import {
   WhatsAppIcon,
   PhoneIcon,
   BackspaceIcon,
-  PhoneIncomingIcon,
 } from '../Icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../theme/colors';
 import { ScreenProps, ScreenNames, Availability } from '../../types';
@@ -80,36 +78,12 @@ const ActionButtonsRow = styled.div`
   margin-top: ${SPACING.lg};
 `;
 
-const SimulateIncomingButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: ${SPACING.xs};
-  padding: ${SPACING.xs} ${SPACING.sm};
-  background: ${COLORS.gypsum};
-  border: 1px solid ${COLORS.koala};
-  border-radius: 4px;
-  font-size: ${TYPOGRAPHY.fontSize.xs};
-  color: ${COLORS.battleship};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: ${COLORS.koala};
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
 interface KeypadScreenProps extends Partial<ScreenProps> {
   dialNumber: string;
   setDialNumber: (num: string) => void;
   availability: Availability;
   setAvailability: (avail: Availability) => void;
   onCall: () => void;
-  onSimulateIncoming?: () => void;
   isCheckingPermission?: boolean;
   permissionError?: string | null;
 }
@@ -120,7 +94,6 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
   availability,
   setAvailability,
   onCall,
-  onSimulateIncoming,
   isCheckingPermission,
   permissionError,
 }) => {
@@ -238,21 +211,9 @@ const KeypadScreen: React.FC<KeypadScreenProps> = ({
       </Content>
 
       <Footer>
-        <FlexBetween>
-          <span style={{ fontSize: TYPOGRAPHY.fontSize.xs, color: COLORS.battleship }}>
-            Powered by WhatsApp Business API
-          </span>
-          {onSimulateIncoming && (
-            <SimulateIncomingButton
-              onClick={onSimulateIncoming}
-              disabled={availability !== 'AVAILABLE'}
-              title={availability !== 'AVAILABLE' ? 'Set status to Available to receive calls' : 'Simulate incoming call'}
-            >
-              <PhoneIncomingIcon size={14} />
-              Test Incoming
-            </SimulateIncomingButton>
-          )}
-        </FlexBetween>
+        <span style={{ fontSize: TYPOGRAPHY.fontSize.xs, color: COLORS.battleship }}>
+          Powered by WhatsApp Business API
+        </span>
       </Footer>
     </WidgetContainer>
   );

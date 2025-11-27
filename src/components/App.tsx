@@ -640,37 +640,6 @@ const App: React.FC = () => {
     setCurrentScreen(ScreenNames.Keypad);
   }, [resetPermission]);
 
-  const handleSimulateIncoming = useCallback(() => {
-    // For testing: simulate incoming call
-    const testData: IncomingCallData = {
-      type: 'incoming_call',
-      callSid: `test_${Date.now()}`,
-      fromNumber: '+1234567890',
-      contactName: 'Test Contact',
-      contactId: 'test_contact',
-      ownerId: effectiveOwnerId,
-    };
-
-    console.log('📞 Simulating incoming call:', testData);
-
-    setIncomingNumber(testData.fromNumber);
-    setContactName(testData.contactName || '');
-    setContactId(testData.contactId || null);
-    setCurrentCallSid(testData.callSid);
-    setDirection('INBOUND');
-
-    if (!DEV_MODE) {
-      cti.incomingCall({
-        externalCallId: uuidv4(),
-        fromNumber: testData.fromNumber,
-        toNumber: fromNumber,
-        createEngagement: true,
-      });
-    }
-
-    setCurrentScreen(ScreenNames.Incoming);
-  }, [cti, fromNumber, effectiveOwnerId]);
-
   // ============================================================================
   // RENDER
   // ============================================================================
@@ -691,7 +660,6 @@ const App: React.FC = () => {
             availability={availability}
             setAvailability={handleAvailabilityChange}
             onCall={handleCall}
-            onSimulateIncoming={handleSimulateIncoming}
             isCheckingPermission={isCheckingPermission}
             permissionError={permissionError}
           />
