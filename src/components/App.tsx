@@ -244,10 +244,11 @@ const App: React.FC = () => {
     const fetchContactName = async () => {
       if (currentScreen === ScreenNames.Keypad && isValidNumber) {
         try {
-          const contact = await apiService.getContact(cleanNumber);
-          if (contact) {
-            const firstName = contact.properties?.firstname || '';
-            const lastName = contact.properties?.lastname || '';
+          const result = await apiService.getContact(cleanNumber);
+          // API returns { contact, owner } structure
+          if (result && result.contact) {
+            const firstName = result.contact.properties?.firstname || '';
+            const lastName = result.contact.properties?.lastname || '';
             const fullName = [firstName, lastName].filter(Boolean).join(' ');
             console.log('📋 Setting contact name from API:', fullName || '(no name found)');
             setContactName(fullName);
@@ -371,10 +372,11 @@ const App: React.FC = () => {
 
         // Fetch contact name for incoming call
         if (fromNumber) {
-          apiService.getContact(fromNumber).then((contact) => {
-            if (contact) {
-              const firstName = contact.properties?.firstname || '';
-              const lastName = contact.properties?.lastname || '';
+          apiService.getContact(fromNumber).then((result) => {
+            // API returns { contact, owner } structure
+            if (result && result.contact) {
+              const firstName = result.contact.properties?.firstname || '';
+              const lastName = result.contact.properties?.lastname || '';
               const fullName = [firstName, lastName].filter(Boolean).join(' ');
               if (fullName) {
                 console.log('📋 Setting contact name for incoming call:', fullName);
