@@ -7,7 +7,7 @@
  * 2. HubSpot Mode - When loaded inside HubSpot iframe
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Constants } from '@hubspot/calling-extensions-sdk';
 
@@ -70,6 +70,9 @@ const App: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [isCallRecorded, setIsCallRecorded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+
+  // Ref to track active call state synchronously (for broadcast handler)
+  const isCallActiveRef = useRef(false);
 
   // Initialize hooks
   const {
@@ -200,6 +203,7 @@ const App: React.FC = () => {
     const unsubscribeAnswered = websocketService.onCallAnswered((data) => {
       console.log('Call answered:', data);
       if (data.callSid === currentCallSid) {
+        isCallActiveRef.current = true; // Mark call as active
         setCallStatus('in-progress');
         startTimer();
         setCurrentScreen(ScreenNames.Calling);
@@ -249,6 +253,7 @@ const App: React.FC = () => {
 
       switch (status) {
         case 'accepted':
+          isCallActiveRef.current = true; // Mark call as active
           setCallStatus('in-progress');
           if (!callDuration) {
             startTimer();
@@ -359,13 +364,18 @@ const App: React.FC = () => {
           break;
 
         case thirdPartyToHostEvents.CALL_ANSWERED:
+          isCallActiveRef.current = true; // Mark call as active
           setCurrentScreen(ScreenNames.Calling);
           break;
 
         case thirdPartyToHostEvents.CALL_ENDED:
-          // Only update UI state - don't call handleCallEnded() as it sends another CALL_ENDED
-          stopTimer();
-          setCurrentScreen(ScreenNames.CallEnded);
+          // Only update UI state if we're actually in an active call
+          // Use ref to check synchronously (avoids React state batching issues)
+          if (isCallActiveRef.current) {
+            isCallActiveRef.current = false;
+            stopTimer();
+            setCurrentScreen(ScreenNames.CallEnded);
+          }
           break;
 
         case thirdPartyToHostEvents.CALL_COMPLETED:
@@ -473,6 +483,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleAcceptCall = useCallback(() => {
+    isCallActiveRef.current = true; // Set synchronously before any broadcasts
     webrtcService.acceptCall();
     cti.callAnswered({ externalCallId: cti.externalCallId });
     startTimer();
@@ -509,6 +520,7 @@ const App: React.FC = () => {
 
   const handleCallEnded = useCallback(
     (status?: string) => {
+      isCallActiveRef.current = false; // Mark call as inactive
       stopTimer();
       setCallStatus((status as CallStatus) || 'completed');
 
@@ -582,6 +594,7 @@ const App: React.FC = () => {
   }, []);
 
   const resetCallState = useCallback(() => {
+    isCallActiveRef.current = false; // Reset call active state
     setDialNumber('+');
     setNotes('');
     setIsCallRecorded(false);
