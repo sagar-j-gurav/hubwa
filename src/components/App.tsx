@@ -221,12 +221,51 @@ const App: React.FC = () => {
   }, [dialNumber, currentScreen, checkPermission, resetPermission]);
 
   // Sync contactId from permission check response to local state
+  // Also fetch contact name when we have a contact ID
   useEffect(() => {
     if (permission?.hubspot_contact_id && !contactId) {
       console.log('💾 Setting contactId from permission check:', permission.hubspot_contact_id);
       setContactId(permission.hubspot_contact_id);
     }
   }, [permission, contactId]);
+
+  // Fetch contact name when we have a valid phone number (for outgoing calls)
+  // Also reset contact name when number changes
+  useEffect(() => {
+    const cleanNumber = cleanPhoneNumber(dialNumber);
+    const isValidNumber = cleanNumber.replace(/\D/g, '').length >= 10;
+
+    // Reset contact name if number is not valid
+    if (!isValidNumber) {
+      setContactName('');
+      return;
+    }
+
+    const fetchContactName = async () => {
+      if (currentScreen === ScreenNames.Keypad && isValidNumber) {
+        try {
+          const contact = await apiService.getContact(cleanNumber);
+          if (contact) {
+            const firstName = contact.properties?.firstname || '';
+            const lastName = contact.properties?.lastname || '';
+            const fullName = [firstName, lastName].filter(Boolean).join(' ');
+            console.log('📋 Setting contact name from API:', fullName || '(no name found)');
+            setContactName(fullName);
+          } else {
+            // No contact found, reset name
+            setContactName('');
+          }
+        } catch (err) {
+          console.log('Could not fetch contact name:', err);
+          setContactName('');
+        }
+      }
+    };
+
+    // Debounce the contact fetch (600ms delay, after permission check)
+    const timeout = setTimeout(fetchContactName, 600);
+    return () => clearTimeout(timeout);
+  }, [dialNumber, currentScreen]);
 
   // ============================================================================
   // WEBSOCKET EVENT HANDLERS
@@ -329,6 +368,23 @@ const App: React.FC = () => {
         setIncomingNumber(fromNumber);
         setCurrentCallSid(callSid);
         setDirection('INBOUND');
+
+        // Fetch contact name for incoming call
+        if (fromNumber) {
+          apiService.getContact(fromNumber).then((contact) => {
+            if (contact) {
+              const firstName = contact.properties?.firstname || '';
+              const lastName = contact.properties?.lastname || '';
+              const fullName = [firstName, lastName].filter(Boolean).join(' ');
+              if (fullName) {
+                console.log('📋 Setting contact name for incoming call:', fullName);
+                setContactName(fullName);
+              }
+            }
+          }).catch((err) => {
+            console.log('Could not fetch contact name for incoming call:', err);
+          });
+        }
 
         // Notify HubSpot SDK about incoming call
         cti.incomingCall({
