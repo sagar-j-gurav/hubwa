@@ -47,9 +47,9 @@ export const Header = styled.header<{ $variant?: 'default' | 'calling' | 'incomi
   padding: ${SPACING.md} ${SPACING.lg};
   background: ${({ $variant }) => {
     switch ($variant) {
-      case 'calling': return `linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%)`;
-      case 'incoming': return `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`;
-      default: return `linear-gradient(135deg, ${COLORS.obsidian} 0%, ${COLORS.slinky} 100%)`;
+      case 'calling': return COLORS.success;
+      case 'incoming': return COLORS.primary;
+      default: return COLORS.obsidian;
     }
   }};
   color: ${COLORS.olaf};
@@ -290,7 +290,7 @@ export const Avatar = styled.div<{ $size?: 'sm' | 'md' | 'lg' }>`
     }
   }};
   border-radius: ${RADIUS.full};
-  background: linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.secondary} 100%);
+  background: ${COLORS.primary};
   color: ${COLORS.olaf};
   display: flex;
   align-items: center;
