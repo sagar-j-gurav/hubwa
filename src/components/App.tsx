@@ -139,7 +139,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!DEV_MODE && isReady) {
       cti.userLoggedIn();
-      console.log('👤 User auto-logged in');
+      // Set default availability to AVAILABLE and notify HubSpot
+      cti.userAvailable();
+      console.log('👤 User auto-logged in and set as Available');
       setCurrentScreen(ScreenNames.Keypad);
     }
   }, [isReady, cti]);
@@ -652,24 +654,35 @@ const App: React.FC = () => {
 
   const handleSaveCall = useCallback(
     (outcome: string) => {
+      const engagementProperties = {
+        hs_timestamp: Date.now(),
+        hs_call_body: notes,
+        hs_call_direction: direction,
+        hs_call_disposition: outcome,
+        hs_call_duration: String(callDuration * 1000), // Convert to milliseconds for HubSpot
+        hs_call_from_number: direction === 'OUTBOUND' ? fromNumber : incomingNumber,
+        hs_call_to_number: direction === 'OUTBOUND' ? dialNumber : fromNumber,
+        hs_call_status: 'COMPLETED',
+        hs_call_title: `WhatsApp Call - ${contactName || dialNumber}`,
+        hs_call_source: 'INTEGRATIONS_PLATFORM',
+        hs_call_recording_url: isCallRecorded ? 'pending' : undefined,
+        hubspot_owner_id: effectiveOwnerId || undefined,
+      };
+
+      console.log('💾 Saving call to HubSpot:', {
+        externalCallId: cti.externalCallId,
+        engagementId,
+        notes,
+        isCallRecorded,
+        engagementProperties,
+      });
+
       // Finalize engagement with HubSpot
       cti.callCompleted({
         externalCallId: cti.externalCallId,
         engagementId: engagementId || undefined,
         hideWidget: false,
-        engagementProperties: {
-          hs_timestamp: Date.now(),
-          hs_call_body: notes,
-          hs_call_direction: direction,
-          hs_call_disposition: outcome,
-          hs_call_duration: String(callDuration),
-          hs_call_from_number: direction === 'OUTBOUND' ? fromNumber : incomingNumber,
-          hs_call_to_number: direction === 'OUTBOUND' ? dialNumber : fromNumber,
-          hs_call_status: 'COMPLETED',
-          hs_call_title: `WhatsApp Call - ${contactName || dialNumber}`,
-          hs_call_source: 'INTEGRATIONS_PLATFORM',
-          hs_call_recording_url: isCallRecorded ? 'pending' : undefined,
-        },
+        engagementProperties,
       });
 
       resetCallState();
@@ -686,6 +699,7 @@ const App: React.FC = () => {
       dialNumber,
       contactName,
       isCallRecorded,
+      effectiveOwnerId,
     ]
   );
 
