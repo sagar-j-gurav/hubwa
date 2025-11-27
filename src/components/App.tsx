@@ -77,6 +77,9 @@ const App: React.FC = () => {
   // Ref to track if user wants to accept incoming call (for WebRTC timing)
   const pendingAcceptRef = useRef(false);
 
+  // Ref to track if WE ended the call (to distinguish from HubSpot SDK CALL_ENDED)
+  const weEndedCallRef = useRef(false);
+
   // Initialize hooks
   const {
     cti,
@@ -381,12 +384,17 @@ const App: React.FC = () => {
           break;
 
         case thirdPartyToHostEvents.CALL_ENDED:
-          // Only update UI state if we're actually in an active call
-          // Use ref to check synchronously (avoids React state batching issues)
-          if (isCallActiveRef.current) {
-            isCallActiveRef.current = false;
-            stopTimer();
-            setCurrentScreen(ScreenNames.CallEnded);
+          // Only process CALL_ENDED if WE initiated it (not from HubSpot SDK)
+          // This prevents HubSpot SDK quirks from ending active calls unexpectedly
+          if (weEndedCallRef.current) {
+            weEndedCallRef.current = false; // Reset the flag
+            if (isCallActiveRef.current) {
+              isCallActiveRef.current = false;
+              stopTimer();
+              setCurrentScreen(ScreenNames.CallEnded);
+            }
+          } else {
+            console.log('⚠️ Ignoring unexpected CALL_ENDED from HubSpot SDK');
           }
           break;
 
@@ -517,6 +525,7 @@ const App: React.FC = () => {
   const handleDeclineCall = useCallback(() => {
     webrtcService.rejectCall();
     apiService.declineCall(currentCallSid || '');
+    weEndedCallRef.current = true; // Mark that WE ended the call
 
     cti.callEnded({
       externalCallId: cti.externalCallId,
@@ -532,6 +541,8 @@ const App: React.FC = () => {
     webrtcService.endCall();
     apiService.endCall(currentCallSid || '');
     stopTimer();
+    isCallActiveRef.current = false;
+    weEndedCallRef.current = true; // Mark that WE ended the call
 
     cti.callEnded({
       externalCallId: cti.externalCallId,
@@ -546,6 +557,7 @@ const App: React.FC = () => {
     (status?: string) => {
       isCallActiveRef.current = false; // Mark call as inactive
       pendingAcceptRef.current = false; // Reset pending accept
+      weEndedCallRef.current = true; // Mark that WE ended the call
       stopTimer();
       setCallStatus((status as CallStatus) || 'completed');
 
@@ -621,6 +633,7 @@ const App: React.FC = () => {
   const resetCallState = useCallback(() => {
     isCallActiveRef.current = false; // Reset call active state
     pendingAcceptRef.current = false; // Reset pending accept state
+    weEndedCallRef.current = false; // Reset call ended flag
     setDialNumber('+');
     setNotes('');
     setIsCallRecorded(false);
