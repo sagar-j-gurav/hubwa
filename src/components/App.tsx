@@ -363,17 +363,21 @@ const App: React.FC = () => {
           break;
 
         case thirdPartyToHostEvents.CALL_ENDED:
-          handleCallEnded();
+          // Only update UI state - don't call handleCallEnded() as it sends another CALL_ENDED
+          stopTimer();
+          setCurrentScreen(ScreenNames.CallEnded);
           break;
 
         case thirdPartyToHostEvents.CALL_COMPLETED:
-          handleCallCompleted();
+          // Only update UI state - don't trigger another broadcast
+          resetCallState();
+          setCurrentScreen(ScreenNames.Keypad);
           break;
       }
     };
 
     cti.broadcastChannel.onmessage = handleBroadcastMessage;
-  }, [cti, dialNumber]);
+  }, [cti, dialNumber, stopTimer, resetCallState]);
 
   // ============================================================================
   // CALL HANDLERS
