@@ -397,15 +397,9 @@ const App: React.FC = () => {
       }
 
       // Handle UI state updates
+      // Note: LOGGED_IN and LOGGED_OUT are handled locally during initialization,
+      // not via broadcast, to prevent multiple tabs from syncing screens
       switch (data.type) {
-        case thirdPartyToHostEvents.LOGGED_IN:
-          setCurrentScreen(ScreenNames.Keypad);
-          break;
-
-        case thirdPartyToHostEvents.LOGGED_OUT:
-          setCurrentScreen(ScreenNames.Login);
-          break;
-
         case thirdPartyToHostEvents.USER_AVAILABLE:
           setAvailability('AVAILABLE');
           break;
