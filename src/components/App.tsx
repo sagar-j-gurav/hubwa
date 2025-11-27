@@ -51,15 +51,15 @@ const { thirdPartyToHostEvents } = Constants;
 const DEV_MODE = process.env.REACT_APP_DEV_MODE === 'true';
 
 const App: React.FC = () => {
-  // Screen state - Start at Login in standalone mode, Loading in HubSpot mode
+  // Screen state - Start at Keypad in standalone mode, Loading in HubSpot mode
   const [currentScreen, setCurrentScreen] = useState<ScreenNames>(
-    DEV_MODE ? ScreenNames.Login : ScreenNames.Loading
+    DEV_MODE ? ScreenNames.Keypad : ScreenNames.Loading
   );
 
   // Call state
   const [dialNumber, setDialNumber] = useState('+');
   const [direction, setDirection] = useState<Direction>('OUTBOUND');
-  const [availability, setAvailability] = useState<Availability>('UNAVAILABLE');
+  const [availability, setAvailability] = useState<Availability>('AVAILABLE');
   const [callStatus, setCallStatus] = useState<CallStatus | null>(null);
   const [currentCallSid, setCurrentCallSid] = useState<string | null>(null);
   const [incomingNumber, setIncomingNumber] = useState('');
@@ -73,6 +73,9 @@ const App: React.FC = () => {
 
   // Ref to track active call state synchronously (for broadcast handler)
   const isCallActiveRef = useRef(false);
+
+  // Ref to track if user wants to accept incoming call (for WebRTC timing)
+  const pendingAcceptRef = useRef(false);
 
   // Initialize hooks
   const {
@@ -128,11 +131,14 @@ const App: React.FC = () => {
   }, [standaloneOwnerId]);
 
   // Initialize when HubSpot SDK is ready (only in HubSpot mode)
+  // Skip login screen - go directly to Keypad
   useEffect(() => {
     if (!DEV_MODE && isReady) {
-      setCurrentScreen(ScreenNames.Login);
+      cti.userLoggedIn();
+      console.log('👤 User auto-logged in');
+      setCurrentScreen(ScreenNames.Keypad);
     }
-  }, [isReady]);
+  }, [isReady, cti]);
 
   // Initialize WebRTC when user logs in
   useEffect(() => {
@@ -241,9 +247,15 @@ const App: React.FC = () => {
     const unsubscribeIncoming = webrtcService.onIncomingCall((call) => {
       console.log('WebRTC incoming call:', call.parameters);
 
-      // If we already have incoming call data from WebSocket, accept the WebRTC leg
-      if (currentScreen === ScreenNames.Incoming) {
-        // Don't auto-accept, user will click Accept button
+      // If user already clicked Accept but WebRTC call wasn't ready yet, accept now
+      if (pendingAcceptRef.current) {
+        console.log('📞 Auto-accepting WebRTC call (user already clicked Accept)');
+        pendingAcceptRef.current = false;
+        isCallActiveRef.current = true;
+        webrtcService.acceptCall();
+        cti.callAnswered({ externalCallId: cti.externalCallId });
+        startTimer();
+        setCurrentScreen(ScreenNames.Calling);
       }
     });
 
@@ -281,7 +293,7 @@ const App: React.FC = () => {
       unsubscribeIncoming();
       unsubscribeStatus();
     };
-  }, [currentScreen, callDuration, startTimer]);
+  }, [currentScreen, callDuration, startTimer, cti]);
 
   // ============================================================================
   // BROADCAST CHANNEL (for multi-window sync)
@@ -483,11 +495,23 @@ const App: React.FC = () => {
   }, []);
 
   const handleAcceptCall = useCallback(() => {
-    isCallActiveRef.current = true; // Set synchronously before any broadcasts
-    webrtcService.acceptCall();
-    cti.callAnswered({ externalCallId: cti.externalCallId });
-    startTimer();
-    setCurrentScreen(ScreenNames.Calling);
+    // Check if WebRTC call is ready
+    if (webrtcService.hasIncomingCall()) {
+      // WebRTC call exists - accept it now
+      isCallActiveRef.current = true;
+      pendingAcceptRef.current = false;
+      webrtcService.acceptCall();
+      cti.callAnswered({ externalCallId: cti.externalCallId });
+      startTimer();
+      setCurrentScreen(ScreenNames.Calling);
+    } else {
+      // WebRTC call hasn't arrived yet - mark as pending
+      // It will be accepted when the WebRTC call arrives
+      console.log('⏳ WebRTC call not ready yet, marking as pending accept');
+      pendingAcceptRef.current = true;
+      // Show Calling screen with "Connecting..." state
+      setCurrentScreen(ScreenNames.Calling);
+    }
   }, [cti, startTimer]);
 
   const handleDeclineCall = useCallback(() => {
@@ -521,6 +545,7 @@ const App: React.FC = () => {
   const handleCallEnded = useCallback(
     (status?: string) => {
       isCallActiveRef.current = false; // Mark call as inactive
+      pendingAcceptRef.current = false; // Reset pending accept
       stopTimer();
       setCallStatus((status as CallStatus) || 'completed');
 
@@ -595,6 +620,7 @@ const App: React.FC = () => {
 
   const resetCallState = useCallback(() => {
     isCallActiveRef.current = false; // Reset call active state
+    pendingAcceptRef.current = false; // Reset pending accept state
     setDialNumber('+');
     setNotes('');
     setIsCallRecorded(false);

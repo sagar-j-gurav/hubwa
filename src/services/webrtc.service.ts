@@ -186,6 +186,13 @@ class WebRTCService {
   }
 
   /**
+   * Check if there's an incoming call waiting
+   */
+  hasIncomingCall(): boolean {
+    return this.currentCall !== null && this.currentCall.status() === 'pending';
+  }
+
+  /**
    * Accept incoming call
    */
   acceptCall(): void {
