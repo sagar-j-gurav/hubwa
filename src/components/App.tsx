@@ -306,7 +306,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // Handle incoming WebRTC calls (from Twilio Device)
     const unsubscribeIncoming = webrtcService.onIncomingCall((call) => {
-      console.log('WebRTC incoming call:', call.parameters);
+      console.log('📞 WebRTC incoming call:', call.parameters);
 
       // If user already clicked Accept but WebRTC call wasn't ready yet, accept now
       if (pendingAcceptRef.current) {
@@ -317,6 +317,29 @@ const App: React.FC = () => {
         cti.callAnswered({ externalCallId: cti.externalCallId });
         startTimer();
         setCurrentScreen(ScreenNames.Calling);
+      } else if (currentScreen !== ScreenNames.Incoming && currentScreen !== ScreenNames.Calling) {
+        // New incoming call - show the Incoming screen
+        console.log('📞 Showing incoming call screen');
+
+        // Extract caller info from Twilio parameters
+        const fromNumber = call.parameters?.From?.replace('whatsapp:', '') || '';
+        const callSid = call.parameters?.CallSid || '';
+
+        // Store call data
+        setIncomingNumber(fromNumber);
+        setCurrentCallSid(callSid);
+        setDirection('INBOUND');
+
+        // Notify HubSpot SDK about incoming call
+        cti.incomingCall({
+          externalCallId: uuidv4(),
+          fromNumber: fromNumber,
+          toNumber: fromNumber,
+          createEngagement: true,
+        });
+
+        // Show incoming screen
+        setCurrentScreen(ScreenNames.Incoming);
       }
     });
 
