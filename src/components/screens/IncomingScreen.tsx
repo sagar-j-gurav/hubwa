@@ -92,7 +92,8 @@ const IncomingScreen: React.FC<IncomingScreenProps> = ({
   onDecline,
 }) => {
   const displayName = contactName || formatPhoneNumber(phoneNumber);
-  const initials = getInitials(contactName || phoneNumber.slice(-4));
+  // Use '?' for initials if no contact name (avoid showing just digits)
+  const initials = contactName ? getInitials(contactName) : '?';
 
   return (
     <WidgetContainer>

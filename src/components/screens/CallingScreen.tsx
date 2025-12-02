@@ -161,7 +161,8 @@ const CallingScreen: React.FC<CallingScreenProps> = ({
   const [showNotes, setShowNotes] = useState(false);
 
   const displayName = contactName || formatPhoneNumber(phoneNumber);
-  const initials = getInitials(contactName || phoneNumber.slice(-4));
+  // Use '?' for initials if no contact name (avoid showing just digits like '8')
+  const initials = contactName ? getInitials(contactName) : '?';
 
   const handleMuteToggle = useCallback(() => {
     onMute(!isMuted);
