@@ -96,7 +96,25 @@ const CallEndedScreen: React.FC<CallEndedScreenProps> = ({
   onSave,
   onDiscard,
 }) => {
-  const [outcome, setOutcome] = useState('connected');
+  // Auto-select outcome based on call status
+  const getInitialOutcome = () => {
+    switch (callStatus) {
+      case 'completed':
+        return duration > 0 ? 'connected' : 'no_answer';
+      case 'no-answer':
+        return 'no_answer';
+      case 'busy':
+        return 'busy';
+      case 'failed':
+        return 'no_answer';
+      case 'canceled':
+        return 'no_answer';
+      default:
+        return 'connected';
+    }
+  };
+
+  const [outcome, setOutcome] = useState(getInitialOutcome());
 
   const displayName = contactName || formatPhoneNumber(phoneNumber);
   // Use '?' for initials if no contact name (avoid showing just digits)
