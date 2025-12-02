@@ -788,11 +788,11 @@ const App: React.FC = () => {
         engagementProperties,
       });
 
-      // Finalize engagement with HubSpot
+      // Finalize engagement with HubSpot and minimize widget
       cti.callCompleted({
         externalCallId: cti.externalCallId,
         engagementId: engagementId || undefined,
-        hideWidget: false,
+        hideWidget: true, // Minimize widget after call ends
         engagementProperties,
       });
 
@@ -815,9 +815,18 @@ const App: React.FC = () => {
   );
 
   const handleDiscardCall = useCallback(() => {
+    // Minimize widget when discarding call
+    if (!DEV_MODE) {
+      cti.callCompleted({
+        externalCallId: cti.externalCallId,
+        engagementId: engagementId || undefined,
+        hideWidget: true, // Minimize widget after discard
+      });
+    }
+
     resetCallState();
     setCurrentScreen(ScreenNames.Keypad);
-  }, []);
+  }, [cti, engagementId]);
 
   const handleMute = useCallback((muted: boolean) => {
     webrtcService.setMute(muted);
