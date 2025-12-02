@@ -42,7 +42,7 @@ import {
   IncomingCallData,
   PermissionStatus,
 } from '../types';
-import { cleanPhoneNumber } from '../utils/formatters';
+import { cleanPhoneNumber, formatPhoneNumber } from '../utils/formatters';
 
 const { thirdPartyToHostEvents } = Constants;
 
@@ -741,6 +741,18 @@ const App: React.FC = () => {
 
   const handleSaveCall = useCallback(
     (outcome: string) => {
+      // Warn if engagementId is missing
+      if (!engagementId) {
+        console.warn('⚠️ WARNING: engagementId is null! Call details may not save to HubSpot.');
+        console.warn('Check browser console for "Engagement created" or "Create engagement succeeded" logs.');
+      }
+
+      // Get the phone number to display in title
+      const displayPhone = direction === 'OUTBOUND' ? dialNumber : incomingNumber;
+      const callTitle = contactName
+        ? `WhatsApp Call - ${contactName}`
+        : `WhatsApp Call - ${formatPhoneNumber(displayPhone)}`;
+
       const engagementProperties = {
         hs_timestamp: Date.now(),
         hs_call_body: notes,
@@ -750,7 +762,7 @@ const App: React.FC = () => {
         hs_call_from_number: direction === 'OUTBOUND' ? fromNumber : incomingNumber,
         hs_call_to_number: direction === 'OUTBOUND' ? dialNumber : fromNumber,
         hs_call_status: 'COMPLETED',
-        hs_call_title: `WhatsApp Call - ${contactName || dialNumber}`,
+        hs_call_title: callTitle,
         hs_call_source: 'INTEGRATIONS_PLATFORM',
         hs_call_recording_url: isCallRecorded ? 'pending' : undefined,
         hubspot_owner_id: effectiveOwnerId || undefined,
@@ -761,6 +773,9 @@ const App: React.FC = () => {
         engagementId,
         notes,
         isCallRecorded,
+        direction,
+        contactName,
+        displayPhone,
         engagementProperties,
       });
 
