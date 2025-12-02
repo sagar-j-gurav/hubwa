@@ -595,7 +595,9 @@ const App: React.FC = () => {
     setCallStatus('connecting');
     setCurrentScreen(ScreenNames.Dialing);
 
-    // Notify HubSpot SDK
+    // Notify HubSpot SDK - should create engagement
+    console.log('📞 Calling cti.outgoingCall with createEngagement: true');
+    console.log('Check for "Create engagement succeeded" log from HubSpot SDK');
     cti.outgoingCall({
       externalCallId: uuidv4(),
       fromNumber,
@@ -701,7 +703,14 @@ const App: React.FC = () => {
 
   const handleEndCall = useCallback(() => {
     webrtcService.endCall();
-    apiService.endCall(currentCallSid || '');
+
+    // Only call API if we have a callSid
+    if (currentCallSid) {
+      apiService.endCall(currentCallSid);
+    } else {
+      console.warn('⚠️ No callSid available when ending call');
+    }
+
     stopTimer();
     isCallActiveRef.current = false;
     weEndedCallRef.current = true; // Mark that WE ended the call
